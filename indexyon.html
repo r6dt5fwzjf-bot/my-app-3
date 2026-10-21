@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>「ごめんね＆ありがとう」カードバトル！</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      background: linear-gradient(135deg, #fff2f5 0%, #f0f3ff 100%);
+      min-height: 100vh;
+      user-select: none;
+    }
+    
+    .card-item {
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .card-item:hover:not(:disabled) {
+      transform: translateY(-8px) scale(1.03);
+    }
+
+    .card-item:active:not(:disabled) {
+      transform: translateY(-2px) scale(0.98);
+    }
+
+    .gauge-fill {
+      transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.5) translateY(20px); }
+      70% { transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .pop-in {
+      animation: popIn 0.4s ease forwards;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(244, 114, 182, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(244, 114, 182, 0.8); }
+    }
+
+    .pulse-glow {
+      animation: pulseGlow 2s infinite;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center p-3 sm:p-4 min-h-screen text-slate-700">
+
+  <!-- Main Container -->
+  <div id="app" class="w-full max-w-md bg-white rounded-3xl p-5 shadow-2xl relative overflow-hidden my-auto border-4 border-pink-200">
+    
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-4 pb-3 border-b-2 border-pink-100">
+      <div class="flex items-center space-x-2">
+        <span class="text-2xl animate-bounce">💖</span>
+        <div>
+          <h1 class="font-black text-base sm:text-lg text-pink-600 tracking-wide leading-tight">「ごめんね＆ありがとう」</h1>
+          <p class="text-[10px] text-pink-400 font-bold">カードバトルで楽しく仲直り！</p>
+        </div>
+      </div>
+      <button onclick="resetApp()" class="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full transition hover:bg-slate-200">
+        <i class="fa-solid fa-rotate-right mr-1"></i>リセット
+      </button>
+    </header>
+
+    <!-- 1. WELCOME SCREEN -->
+    <div id="screen-welcome" class="space-y-5 text-center py-2">
+      <div class="relative inline-block my-2">
+        <div class="w-24 h-24 bg-pink-100 rounded-full flex items-center justify-center text-pink-500 text-5xl mx-auto shadow-inner">
+          <i class="fa-solid fa-hand-holding-heart"></i>
+        </div>
+        <span class="absolute -top-1 -right-1 bg-yellow-400 text-white font-black text-xs px-2 py-1 rounded-full shadow">HP満タンを目指せ！</span>
+      </div>
+
+      <h2 class="text-2xl font-black text-slate-800">カードで仲直りバトル！</h2>
+      <p class="text-xs text-slate-600 leading-relaxed px-2 font-bold">
+        喧嘩して気まずくても大丈夫！<br>
+        順番に想いのこもったカードを選んで出し合おう。<br>
+        二人の<b>「仲直りゲージ」</b>が100%になったら勝利（仲直り成立）！
+      </p>
+
+      <div class="bg-pink-50/90 p-3.5 rounded-2xl text-left space-y-1.5 border border-pink-200 text-xs text-pink-900">
+        <div class="font-black flex items-center text-pink-600"><i class="fa-solid fa-gamepad mr-1.5"></i>遊びかた：</div>
+        <p class="flex items-center"><span class="w-4 h-4 bg-pink-400 text-white rounded-full inline-flex items-center justify-center text-[10px] mr-1.5 font-bold">1</span>お互いの名前を登録します</p>
+        <p class="flex items-center"><span class="w-4 h-4 bg-pink-400 text-white rounded-full inline-flex items-center justify-center text-[10px] mr-1.5 font-bold">2</span>交互に手札から使いたいカードを選択！</p>
+        <p class="flex items-center"><span class="w-4 h-4 bg-pink-400 text-white rounded-full inline-flex items-center justify-center text-[10px] mr-1.5 font-bold">3</span>仲直りゲージが100%になったらハグ＆仲直り完了！</p>
+      </div>
+
+      <button onclick="showScreen('screen-setup')" class="w-full py-3.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-black text-base rounded-2xl shadow-lg shadow-pink-200 transition transform active:scale-95 flex items-center justify-center space-x-2">
+        <span>ゲームを開始する！</span>
+        <i class="fa-solid fa-play"></i>
+      </button>
+    </div>
+
+    <!-- 2. SETUP SCREEN -->
+    <div id="screen-setup" class="hidden space-y-5 text-center py-2">
+      <h2 class="text-lg font-black text-slate-800"><i class="fa-solid fa-users text-pink-500 mr-2"></i>プレイヤーのお名前</h2>
+      
+      <div class="space-y-4 text-left">
+        <div class="bg-pink-50/50 p-3 rounded-2xl border border-pink-100">
+          <label class="block text-xs font-bold text-pink-600 mb-1">プレイヤー 1 （先攻）</label>
+          <input type="text" id="p1-name" value="彼女" class="w-full px-3.5 py-2.5 rounded-xl border border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 font-bold text-slate-700 bg-white">
+        </div>
+        <div class="bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100">
+          <label class="block text-xs font-bold text-indigo-600 mb-1">プレイヤー 2 （後攻）</label>
+          <input type="text" id="p2-name" value="彼氏" class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-slate-700 bg-white">
+        </div>
+      </div>
+
+      <button onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-pink-500 to-indigo-600 hover:opacity-95 text-white font-black text-base rounded-2xl shadow-lg shadow-pink-200 transition transform active:scale-95">
+        カードを配ってバトル開始！ 🃏
+      </button>
+    </div>
+
+    <!-- 3. GAME BATTLE SCREEN -->
+    <div id="screen-game" class="hidden space-y-4">
+      
+      <!-- Top Score / Status Bar -->
+      <div class="bg-gradient-to-r from-pink-50 to-indigo-50 p-3.5 rounded-2xl border border-pink-200 space-y-2">
+        <div class="flex justify-between items-center text-xs font-black">
+          <span class="text-slate-600 flex items-center">
+            <i class="fa-solid fa-heart text-pink-500 mr-1.5 text-sm"></i>仲直りゲージ
+          </span>
+          <span id="hp-text" class="text-pink-600 text-sm font-extrabold">0 / 100 %</span>
+        </div>
+
+        <!-- Gauge Bar -->
+        <div class="w-full bg-slate-200 rounded-full h-5 p-0.5 overflow-hidden shadow-inner">
+          <div id="hp-gauge" class="gauge-fill bg-gradient-to-r from-pink-400 via-rose-500 to-indigo-500 h-full rounded-full w-0 flex items-center justify-end pr-2 text-[10px] text-white font-black">
+          </div>
+        </div>
+      </div>
+
+      <!-- Turn Badge -->
+      <div class="flex justify-between items-center">
+        <div id="turn-badge" class="px-3 py-1 rounded-full text-xs font-black shadow-sm flex items-center space-x-1.5">
+          <!-- Filled dynamically -->
+        </div>
+        <span class="text-[11px] font-bold text-slate-400">出せるカードを選んでね</span>
+      </div>
+
+      <!-- Played Card Arena (Show last played card) -->
+      <div id="card-arena" class="min-h-[140px] bg-slate-50/80 border-2 border-dashed border-slate-200 rounded-2xl p-3 flex flex-col items-center justify-center text-center relative overflow-hidden">
+        <p id="arena-placeholder" class="text-xs font-bold text-slate-400 flex flex-col items-center">
+          <i class="fa-regular fa-hand-pointer text-2xl mb-1 text-slate-300"></i>
+          手札からカードを選んでタップ！
+        </p>
+        <div id="played-card-container" class="hidden w-full pop-in">
+          <!-- Dynamically populated played card info -->
+        </div>
+      </div>
+
+      <!-- Hand Cards Area -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center px-1">
+          <span class="text-xs font-black text-slate-600"><i class="fa-solid fa-layer-group text-pink-500 mr-1"></i>あなたの手札</span>
+          <span class="text-[10px] font-bold text-slate-400">1枚えらんで送信</span>
+        </div>
+
+        <!-- Cards List -->
+        <div id="hand-cards" class="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto p-1">
+          <!-- Hand items populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. TURN SWITCH MODAL/SCREEN -->
+    <div id="screen-switch" class="hidden space-y-5 text-center py-6">
+      <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl mx-auto animate-bounce">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+      </div>
+      <div class="space-y-1">
+        <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest">NEXT TURN</p>
+        <h2 class="text-2xl font-black text-slate-800"><span id="next-player-name" class="text-indigo-600"></span> さんの番です！</h2>
+      </div>
+      <p class="text-xs text-slate-500 leading-relaxed px-4">
+        スマホを <span id="next-player-name-sub" class="font-bold text-indigo-600"></span> さんに手渡してください📱<br>
+        準備ができたらボタンを押してね！
+      </p>
+
+      <button onclick="startNextTurn()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-base rounded-2xl shadow-lg shadow-indigo-200 transition transform active:scale-95">
+        画面を受け取ってプレイ！
+      </button>
+    </div>
+
+    <!-- 5. RESULT / VICTORY SCREEN -->
+    <div id="screen-result" class="hidden space-y-4 py-2 text-center">
+      <div class="relative inline-block my-1">
+        <div class="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center text-pink-500 text-4xl mx-auto pulse-glow">
+          <i class="fa-solid fa-heart-circle-check"></i>
+        </div>
+        <span class="absolute -bottom-1 -right-2 bg-yellow-400 text-slate-800 font-black text-[10px] px-2 py-0.5 rounded-full shadow">100% COMPLETE!</span>
+      </div>
+
+      <div class="space-y-1">
+        <h2 class="text-2xl font-black text-pink-600">仲直り成立 🎉</h2>
+        <p class="text-xs text-slate-600 font-bold">お互いの素直な気持ちが届きました！</p>
+      </div>
+
+      <!-- Final Action Box -->
+      <div class="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-4 rounded-2xl shadow-md text-left space-y-2">
+        <div class="font-black text-xs text-yellow-200 flex items-center">
+          <i class="fa-solid fa-star mr-1"></i>ミッションクリア！最後の仕上げ
+        </div>
+        <p class="text-xs font-bold leading-relaxed">
+          目を見て<b>「仲直りしてくれてありがとう！」</b>と言って、ぎゅっとハグ（または握手）しよう🤝💖
+        </p>
+      </div>
+
+      <!-- Gemini AI Summary / Message -->
+      <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl text-left space-y-2">
+        <div class="flex items-center justify-between text-amber-800 font-black text-xs">
+          <span class="flex items-center"><i class="fa-solid fa-sparkles text-amber-500 mr-1.5"></i>AIからの仲直りお祝いメッセージ</span>
+        </div>
+        <p id="ai-comment" class="text-xs text-slate-700 leading-relaxed min-h-[50px]">
+          お二人へのメッセージを生成中...✨
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="space-y-2 pt-1">
+        <button onclick="resetApp()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-2xl shadow transition">
+          もう一度バトルする
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Master Card Deck Data
+    const ALL_CARDS = [
+      {
+        id: 'c1',
+        title: 'ごめんねカード',
+        category: 'apology',
+        hp: 25,
+        icon: 'fa-solid fa-face-sad-tear',
+        color: 'from-amber-400 to-orange-500',
+        borderColor: 'border-orange-300',
+        textColor: 'text-orange-600',
+        bgLight: 'bg-orange-50',
+        desc: '「意地をはってごめんね。素直になるよ。」',
+      },
+      {
+        id: 'c2',
+        title: 'ありがとうカード',
+        category: 'thanks',
+        hp: 20,
+        icon: 'fa-solid fa-heart',
+        color: 'from-pink-400 to-rose-500',
+        borderColor: 'border-pink-300',
+        textColor: 'text-pink-600',
+        bgLight: 'bg-pink-50',
+        desc: '「いつも側にいてくれてありがとう！」',
+      },
+      {
+        id: 'c3',
+        title: '美味しいもの奢る',
+        category: 'gift',
+        hp: 25,
+        icon: 'fa-solid fa-utensils',
+        color: 'from-emerald-400 to-teal-500',
+        borderColor: 'border-teal-300',
+        textColor: 'text-teal-600',
+        bgLight: 'bg-teal-50',
+        desc: '「今度すきなスイーツ（ご飯）奢るね！」',
+      },
+      {
+        id: 'c4',
+        title: 'ぎゅっとハグ',
+        category: 'action',
+        hp: 30,
+        icon: 'fa-solid fa-hands-holding',
+        color: 'from-purple-400 to-indigo-500',
+        borderColor: 'border-indigo-300',
+        textColor: 'text-indigo-600',
+        bgLight: 'bg-indigo-50',
+        desc: '「お話がおわったら、ハグしよう？」',
+      },
+      {
+        id: 'c5',
+        title: '話を聞くカード',
+        category: 'listen',
+        hp: 20,
+        icon: 'fa-solid fa-comments',
+        color: 'from-sky-400 to-blue-500',
+        borderColor: 'border-blue-300',
+        textColor: 'text-blue-600',
+        bgLight: 'bg-blue-50',
+        desc: '「あなたの気持ちをじっくり聞かせて？」',
+      },
+      {
+        id: 'c6',
+        title: 'だいすきカード',
+        category: 'love',
+        hp: 30,
+        icon: 'fa-solid fa-heart-pulse',
+        color: 'from-rose-400 to-pink-600',
+        borderColor: 'border-pink-300',
+        textColor: 'text-rose-600',
+        bgLight: 'bg-rose-50',
+        desc: '「喧嘩しても大好きなのは変わりないよ」',
+      },
+      {
+        id: 'c7',
+        title: 'あたまナデナデ',
+        category: 'action',
+        hp: 25,
+        icon: 'fa-solid fa-hand-holding-heart',
+        color: 'from-fuchsia-400 to-pink-500',
+        borderColor: 'border-fuchsia-300',
+        textColor: 'text-fuchsia-600',
+        bgLight: 'bg-fuchsia-50',
+        desc: '「仲直りのしるしに頭ぽんぽんして？」',
+      },
+      {
+        id: 'c8',
+        title: 'お茶タイムカード',
+        category: 'action',
+        hp: 15,
+        icon: 'fa-solid fa-mug-hot',
+        color: 'from-amber-500 to-yellow-600',
+        borderColor: 'border-amber-300',
+        textColor: 'text-amber-700',
+        bgLight: 'bg-amber-50',
+        desc: '「あたたかい飲みもので一息つこう☕️」',
+      }
+    ];
+
+    // State Variables
+    let p1Name = "彼女";
+    let p2Name = "彼氏";
+    let currentTurnPlayer = 1; // 1 or 2
+    let currentHp = 0;
+    const maxHp = 100;
+
+    let p1Hand = [];
+    let p2Hand = [];
+    let battleLog = [];
+
+    // Helper: Show Screen
+    function showScreen(screenId) {
+      const screens = ['screen-welcome', 'screen-setup', 'screen-game', 'screen-switch', 'screen-result'];
+      screens.forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(screenId).classList.remove('hidden');
+    }
+
+    // Start Game Initialization
+    function startGame() {
+      p1Name = document.getElementById('p1-name').value.trim() || "プレイヤー1";
+      p2Name = document.getElementById('p2-name').value.trim() || "プレイヤー2";
+
+      currentHp = 0;
+      currentTurnPlayer = 1;
+      battleLog = [];
+
+      // Deal cards (Randomly pick 4 for each)
+      p1Hand = shuffleArray([...ALL_CARDS]).slice(0, 4);
+      p2Hand = shuffleArray([...ALL_CARDS]).slice(0, 4);
+
+      updateGauge();
+      renderGameTurn();
+      showScreen('screen-game');
+    }
+
+    // Shuffle Array Helper
+    function shuffleArray(arr) {
+      return arr.sort(() => Math.random() - 0.5);
+    }
+
+    // Render Game State for Current Turn
+    function renderGameTurn() {
+      const isP1 = currentTurnPlayer === 1;
+      const activeName = isP1 ? p1Name : p2Name;
+      const activeHand = isP1 ? p1Hand : p2Hand;
+
+      // Update Turn Badge
+      const turnBadge = document.getElementById('turn-badge');
+      turnBadge.innerText = `${activeName} さんのターン`;
+      turnBadge.className = isP1 
+        ? "px-3 py-1 bg-pink-500 text-white text-xs font-black rounded-full shadow-sm"
+        : "px-3 py-1 bg-indigo-600 text-white text-xs font-black rounded-full shadow-sm";
+
+      // Render Hand Cards
+      const handContainer = document.getElementById('hand-cards');
+      handContainer.innerHTML = '';
+
+      activeHand.forEach((card, index) => {
+        const cardEl = document.createElement('button');
+        cardEl.onclick = () => playCard(index);
+        cardEl.className = `card-item border-2 ${card.borderColor} ${card.bgLight} p-3 rounded-2xl text-left flex flex-col justify-between shadow-sm relative overflow-hidden group`;
+        
+        cardEl.innerHTML = `
+          <div class="flex justify-between items-start mb-1">
+            <span class="w-8 h-8 rounded-xl bg-gradient-to-br ${card.color} text-white flex items-center justify-center text-sm shadow">
+              <i class="${card.icon}"></i>
+            </span>
+            <span class="text-[10px] font-black bg-white px-2 py-0.5 rounded-full ${card.textColor} border ${card.borderColor} shadow-xs">
+              +${card.hp}%
+            </span>
+          </div>
+          <div>
+            <div class="font-black text-xs text-slate-800 leading-tight mb-0.5">${card.title}</div>
+            <div class="text-[10px] text-slate-500 font-bold line-clamp-2">${card.desc}</div>
+          </div>
+        `;
+        handContainer.appendChild(cardEl);
+      });
+    }
+
+    // Play a Card
+    function playCard(cardIndex) {
+      const isP1 = currentTurnPlayer === 1;
+      const activeName = isP1 ? p1Name : p2Name;
+      const activeHand = isP1 ? p1Hand : p2Hand;
+
+      const card = activeHand[cardIndex];
+
+      // Remove played card from hand & add new random card if available
+      activeHand.splice(cardIndex, 1);
+      const remainingCards = ALL_CARDS.filter(c => !activeHand.includes(c));
+      if (remainingCards.length > 0) {
+        activeHand.push(shuffleArray(remainingCards)[0]);
+      }
+
+      // Increase HP
+      currentHp = Math.min(maxHp, currentHp + card.hp);
+      updateGauge();
+
+      // Log action
+      battleLog.push({ player: activeName, card: card });
+
+      // Show played card in Arena
+      showInArena(activeName, card);
+
+      // Check Victory Condition
+      if (currentHp >= maxHp) {
+        setTimeout(() => {
+          showVictoryScreen();
+        }, 1200);
+      } else {
+        // Switch Turn Modal
+        setTimeout(() => {
+          currentTurnPlayer = isP1 ? 2 : 1;
+          const nextName = currentTurnPlayer === 1 ? p1Name : p2Name;
+          document.getElementById('next-player-name').innerText = nextName;
+          document.getElementById('next-player-name-sub').innerText = nextName;
+          showScreen('screen-switch');
+        }, 1200);
+      }
+    }
+
+    // Display Card in Arena
+    function showInArena(playerName, card) {
+      document.getElementById('arena-placeholder').classList.add('hidden');
+      const container = document.getElementById('played-card-container');
+      container.classList.remove('hidden');
+
+      container.innerHTML = `
+        <div class="bg-white p-3 rounded-2xl border-2 ${card.borderColor} shadow-md text-center space-y-1">
+          <div class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-100 text-pink-700 mb-1">
+            <i class="fa-solid fa-sparkles mr-1"></i>${playerName} がカードを使用！
+          </div>
+          <div class="flex items-center justify-center space-x-2">
+            <span class="w-7 h-7 rounded-lg bg-gradient-to-br ${card.color} text-white flex items-center justify-center text-xs">
+              <i class="${card.icon}"></i>
+            </span>
+            <span class="font-black text-sm text-slate-800">${card.title}</span>
+            <span class="text-xs font-black ${card.textColor}">+${card.hp}%</span>
+          </div>
+          <p class="text-xs font-bold text-slate-600 bg-slate-50 py-1.5 px-2 rounded-xl border border-slate-100">
+            ${card.desc}
+          </p>
+        </div>
+      `;
+    }
+
+    // Update HP Gauge UI
+    function updateGauge() {
+      const gauge = document.getElementById('hp-gauge');
+      const hpText = document.getElementById('hp-text');
+
+      gauge.style.width = `${currentHp}%`;
+      gauge.innerText = currentHp > 10 ? `${currentHp}%` : '';
+      hpText.innerText = `${currentHp} / 100 %`;
+    }
+
+    // Continue Next Turn
+    function startNextTurn() {
+      renderGameTurn();
+      showScreen('screen-game');
+    }
+
+    // Show Victory / Completion Screen
+    function showVictoryScreen() {
+      showScreen('screen-result');
+      fetchAICelebration();
+    }
+
+    // Call Gemini API for Celebration Comment
+    async function fetchAICelebration() {
+      const commentEl = document.getElementById('ai-comment');
+      commentEl.innerHTML = `<span class="inline-block animate-spin mr-2"><i class="fa-solid fa-spinner"></i></span>お二人のプレイ結果から温かいメッセージを作成中...`;
+
+      let summary = `【${p1Name}】と【${p2Name}】が仲直りカードバトルで100%を達成しました！\n使われたカード:\n`;
+      battleLog.forEach(log => {
+        summary += `- ${log.player}: 「${log.card.title}」（${log.card.desc}）\n`;
+      });
+
+      const systemPrompt = "あなたは温かく優しいカップル専門カウンセラーAIです。仲直りカードバトルを無事にクリアしたカップル（2人）に向けて、お互いが出した優しさのこもったカードを称えつつ、仲直りを祝福する心温まるメッセージ（150文字程度）を届けてください。";
+
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: summary }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] }
+          })
+        });
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (text) {
+          commentEl.innerText = text;
+        } else {
+          commentEl.innerText = `${p1Name}さん、${p2Name}さん、仲直り達成おめでとうございます！お互いに思いやりのこもったカードを出し合えた素直な気持ちがあれば、これからもきっと素敵な時間を過ごせますよ💕`;
+        }
+      } catch (e) {
+        console.error(e);
+        commentEl.innerText = `${p1Name}さん、${p2Name}さん、100%仲直り達成おめでとうございます！素直な気持ちを伝え合えた二人なら、もっと仲良くなれますよ✨`;
+      }
+    }
+
+    // Reset Game App
+    function resetApp() {
+      currentHp = 0;
+      currentTurnPlayer = 1;
+      battleLog = [];
+      document.getElementById('arena-placeholder').classList.remove('hidden');
+      document.getElementById('played-card-container').classList.add('hidden');
+      showScreen('screen-welcome');
+    }
+  </script>
+</body>
+</html>
